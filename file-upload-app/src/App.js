@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {useDropzone} from 'react-dropzone';
 
 function App() {
   const [file, setFile] = useState(null);
@@ -10,33 +11,13 @@ function App() {
     setFile(e.target.files[0]);
   };
 
-  const handleFileUpload = async () => {
-    if (!file) {
-      alert('Please select a file');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await axios.post('http://localhost:5153/api/upload/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      console.log(response.data.message);
-
-      const updatedFileListResponse = await axios.get('http://localhost:5153/api/upload/files');
-      setFiles(updatedFileListResponse.data);
-
-      setFile(null);
-    } catch (error) {
-      console.error(error);
-      alert('File upload failed');
-    }
-  };
+  const { getRootProps, getInputProps } = useDropzone ({
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length> 0){
+        handleFileUpload(acceptedFiles[0]);
+      }
+    },
+  });
 
   useEffect(() => {
     axios.get('http://localhost:5153/api/upload/files')
@@ -47,6 +28,38 @@ function App() {
         console.error(error);
       });
   }, []);
+
+  const handleFileUpload = (file) => {
+    if (!file) {
+      alert('Please select a file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    axios.post('http://localhost:5153/api/upload/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    .then((response) => {
+      console.log(response.data.message); // Display success message
+
+      // Fetch the updated list of file names after a successful upload.
+      axios.get('http://localhost:5153/api/upload/files')
+        .then((response) => {
+          setFiles(response.data);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    })
+    .catch((error) => {
+      console.error(error);
+      alert('File upload failed');
+    });
+  };
 
   const handleDownload = (fileName) => {
     axios({
@@ -71,8 +84,10 @@ function App() {
   return (
     <div className="App">
       <h1>File Upload</h1>
-      <input type="file" onChange={handleFileChange} />
-      <button onClick={handleFileUpload}>Upload</button>
+      <div {...getRootProps()} className="dropzone">
+        <input {...getInputProps()} />
+        <p>Drag and drop a file here, or click to select a file</p>
+      </div>
 
       <h1>File List</h1>
       <ul>
@@ -87,4 +102,3 @@ function App() {
 }
 
 export default App;
-
